@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GM001 - 配送マッピングシステム</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry"></script>
+</head>
+<body>
+<div class="container-fluid">
+    <h1 class="mb-4">GM001 配送マッピングシステム</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>配送ルートマップ</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>配送統計</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h3 class="text-primary" id="totalDeliveries">-</h3>
+                            <small>総配送数</small>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success" id="completedDeliveries">-</h3>
+                            <small>完了</small>
+                        </div>
+                        <div class="col-6 mt-3">
+                            <h3 class="text-warning" id="pendingDeliveries">-</h3>
+                            <small>進行中</small>
+                        </div>
+                        <div class="col-6 mt-3">
+                            <h3 class="text-info" id="totalDistance">-</h3>
+                            <small>総距離 (km)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>配送先一覧</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group" id="deliveryList">
+                        <!-- 配送先がここに表示されます -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>配送詳細</h5>
+                    <div>
+                        <button class="btn btn-primary" onclick="optimizeRoute()">ルート最適化</button>
+                        <button class="btn btn-success" onclick="exportData()">データエクスポート</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="deliveryTable">
+                            <thead>
+                                <tr>
+                                    <th>順序</th>
+                                    <th>顧客名</th>
+                                    <th>住所</th>
+                                    <th>予定時刻</th>
+                                    <th>ステータス</th>
+                                    <th>距離</th>
+                                    <th>備考</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deliveryTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// GM001 配送マッピングシステム
+class GM001ShippingMapper {
+    constructor() {
+        this.map = null;
+        this.markers = [];
+        this.deliveryData = [];
+        this.initializeMap();
+        this.loadDeliveryData();
+    }
+    
+    initializeMap() {
+        // デフォルト位置（東京）
+        const defaultLocation = { lat: 35.6762, lng: 139.6503 };
+        
+        this.map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 10,
+            center: defaultLocation,
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+        });
+    }
+    
+    loadDeliveryData() {
+        google.script.run
+            .withSuccessHandler(this.handleDeliveryData.bind(this))
+            .withFailureHandler(this.handleError.bind(this))
+            .getDeliveryData();
+    }
+    
+    handleDeliveryData(data) {
+        this.deliveryData = data.deliveries;
+        this.updateStatistics(data.statistics);
+        this.updateDeliveryList(data.deliveries);
+        this.updateDeliveryTable(data.deliveries);
+        this.plotDeliveryPoints(data.deliveries);
+    }
+    
+    updateStatistics(stats) {
+        document.getElementById('totalDeliveries').textContent = stats.total;
+        document.getElementById('completedDeliveries').textContent = stats.completed;
+        document.getElementById('pendingDeliveries').textContent = stats.pending;
+        document.getElementById('totalDistance').textContent = stats.totalDistance.toFixed(1);
+    }
+    
+    updateDeliveryList(deliveries) {
+        const listContainer = document.getElementById('deliveryList');
+        listContainer.innerHTML = '';
+        
+        deliveries.forEach((delivery, index) => {
+            const listItem = document.createElement('div');
+            listItem.className = `list-group-item ${this.getStatusClass(delivery.status)}`;
+            listItem.innerHTML = `
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${delivery.customerName}</h6>
+                    <small>${delivery.scheduledTime}</small>
+                </div>
+                <p class="mb-1">${delivery.address}</p>
+                <small>ステータス: ${delivery.status}</small>
+            `;
+            
+            listItem.addEventListener('click', () => {
+                this.focusOnDelivery(index);
+            });
+            
+            listContainer.appendChild(listItem);
+        });
+    }
+    
+    updateDeliveryTable(deliveries) {
+        const tbody = document.getElementById('deliveryTableBody');
+        tbody.innerHTML = '';
+        
+        deliveries.forEach((delivery, index) => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>${delivery.order}</td>
+                <td>${delivery.customerName}</td>
+                <td>${delivery.address}</td>
+                <td>${delivery.scheduledTime}</td>
+                <td>
+                    <span class="badge ${this.getStatusBadgeClass(delivery.status)}">
+                        ${delivery.status}
+                    </span>
+                </td>
+                <td>${delivery.distance}km</td>
+                <td>${delivery.notes || '-'}</td>
+            `;
+        });
+    }
+    
+    plotDeliveryPoints(deliveries) {
+        // 既存のマーカーをクリア
+        this.clearMarkers();
+        
+        const bounds = new google.maps.LatLngBounds();
+        
+        deliveries.forEach((delivery, index) => {
+            if (delivery.coordinates) {
+                const marker = new google.maps.Marker({
+                    position: {
+                        lat: delivery.coordinates.lat,
+                        lng: delivery.coordinates.lng
+                    },
+                    map: this.map,
+                    title: delivery.customerName,
+                    icon: this.getMarkerIcon(delivery.status),
+                    label: {
+                        text: delivery.order.toString(),
+                        color: 'white',
+                        fontWeight: 'bold'
+                    }
+                });
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div>
+                            <h6>${delivery.customerName}</h6>
+                            <p>${delivery.address}</p>
+                            <p><strong>予定時刻:</strong> ${delivery.scheduledTime}</p>
+                            <p><strong>ステータス:</strong> ${delivery.status}</p>
+                            ${delivery.notes ? `<p><strong>備考:</strong> ${delivery.notes}</p>` : ''}
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(this.map, marker);
+                });
+                
+                this.markers.push(marker);
+                bounds.extend(marker.getPosition());
+            }
+        });
+        
+        // 最適化されたルートを描画
+        this.drawOptimizedRoute(deliveries);
+        
+        // マップをマーカーに合わせて調整
+        if (this.markers.length > 0) {
+            this.map.fitBounds(bounds);
+        }
+    }
+    
+    drawOptimizedRoute(deliveries) {
+        const validDeliveries = deliveries.filter(d => d.coordinates);
+        if (validDeliveries.length < 2) return;
+        
+        const path = validDeliveries.map(delivery => ({
+            lat: delivery.coordinates.lat,
+            lng: delivery.coordinates.lng
+        }));
+        
+        const route = new google.maps.Polyline({
+            path: path,
+            geodesic: true,
+            strokeColor: '#007bff',
+            strokeOpacity: 1.0,
+            strokeWeight: 3
+        });
+        
+        route.setMap(this.map);
+    }
+    
+    clearMarkers() {
+        this.markers.forEach(marker => {
+            marker.setMap(null);
+        });
+        this.markers = [];
+    }
+    
+    focusOnDelivery(index) {
+        if (this.markers[index]) {
+            this.map.setCenter(this.markers[index].getPosition());
+            this.map.setZoom(15);
+            google.maps.event.trigger(this.markers[index], 'click');
+        }
+    }
+    
+    getMarkerIcon(status) {
+        const color = {
+            '完了': '#28a745',
+            '進行中': '#ffc107',
+            '未開始': '#6c757d',
+            '遅延': '#dc3545'
+        }[status] || '#007bff';
+        
+        return {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+        };
+    }
+    
+    getStatusClass(status) {
+        switch(status) {
+            case '完了': return 'list-group-item-success';
+            case '進行中': return 'list-group-item-warning';
+            case '遅延': return 'list-group-item-danger';
+            default: return '';
+        }
+    }
+    
+    getStatusBadgeClass(status) {
+        switch(status) {
+            case '完了': return 'bg-success';
+            case '進行中': return 'bg-warning';
+            case '未開始': return 'bg-secondary';
+            case '遅延': return 'bg-danger';
+            default: return 'bg-info';
+        }
+    }
+    
+    handleError(error) {
+        console.error('配送データの取得に失敗しました:', error);
+        alert('データの取得に失敗しました。しばらくしてから再試行してください。');
+    }
+}
+
+// グローバル関数
+function optimizeRoute() {
+    google.script.run
+        .withSuccessHandler(function(optimizedData) {
+            alert('ルートが最適化されました！');
+            location.reload();
+        })
+        .withFailureHandler(function(error) {
+            alert('ルート最適化に失敗しました: ' + error);
+        })
+        .optimizeDeliveryRoute();
+}
+
+function exportData() {
+    google.script.run
+        .withSuccessHandler(function(url) {
+            window.open(url, '_blank');
+        })
+        .withFailureHandler(function(error) {
+            alert('エクスポートに失敗しました: ' + error);
+        })
+        .exportDeliveryData();
+}
+
+// 初期化
+document.addEventListener('DOMContentLoaded', function() {
+    new GM001ShippingMapper();
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GM001 - 購買管理システム</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container-fluid">
+    <h1 class="mb-4">GM001 購買管理システム</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>購買履歴</h5>
+                    <button class="btn btn-primary" onclick="showAddPurchaseModal()">新規購買追加</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="purchaseTable">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>取引先</th>
+                                    <th>商品/サービス</th>
+                                    <th>数量</th>
+                                    <th>単価</th>
+                                    <th>合計金額</th>
+                                    <th>ステータス</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>月次購買統計</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>カテゴリ別分析</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 新規購買追加モーダル -->
+<div class="modal fade" id="addPurchaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">新規購買追加</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="purchaseForm">
+                    <div class="mb-3">
+                        <label for="vendor" class="form-label">取引先</label>
+                        <input type="text" class="form-control" id="vendor" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="product" class="form-label">商品/サービス</label>
+                        <input type="text" class="form-control" id="product" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="quantity" class="form-label">数量</label>
+                                <input type="number" class="form-control" id="quantity" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="unitPrice" class="form-label">単価</label>
+                                <input type="number" class="form-control" id="unitPrice" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">カテゴリ</label>
+                        <select class="form-select" id="category" required>
+                            <option value="">選択してください</option>
+                            <option value="事務用品">事務用品</option>
+                            <option value="IT機器">IT機器</option>
+                            <option value="設備">設備</option>
+                            <option value="サービス">サービス</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">備考</label>
+                        <textarea class="form-control" id="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-primary" onclick="savePurchase()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// GM001 購買管理システム
+class GM001PurchaseManager {
+    constructor() {
+        this.initializeCharts();
+        this.loadPurchaseData();
+    }
+    
+    initializeCharts() {
+        // 月次統計チャート
+        const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+        this.monthlyChart = new Chart(monthlyCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: '購買金額 (¥)',
+                    data: [],
+                    backgroundColor: '#007bff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '¥' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // カテゴリ別チャート
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        this.categoryChart = new Chart(categoryCtx, {
+            type: 'pie',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB', 
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    
+    loadPurchaseData() {
+        google.script.run
+            .withSuccessHandler(this.handlePurchaseData.bind(this))
+            .withFailureHandler(this.handleError.bind(this))
+            .getPurchaseData();
+    }
+    
+    handlePurchaseData(data) {
+        this.updatePurchaseTable(data.purchases);
+        this.updateMonthlyChart(data.monthly);
+        this.updateCategoryChart(data.categoryBreakdown);
+    }
+    
+    updatePurchaseTable(purchases) {
+        const tbody = document.getElementById('purchaseTableBody');
+        tbody.innerHTML = '';
+        
+        purchases.forEach((purchase, index) => {
+            const row = tbody.insertRow();
+            const totalAmount = purchase.quantity * purchase.unitPrice;
+            
+            row.innerHTML = `
+                <td>${purchase.date}</td>
+                <td>${purchase.vendor}</td>
+                <td>${purchase.product}</td>
+                <td>${purchase.quantity}</td>
+                <td>¥${purchase.unitPrice.toLocaleString()}</td>
+                <td>¥${totalAmount.toLocaleString()}</td>
+                <td>
+                    <span class="badge ${this.getStatusClass(purchase.status)}">
+                        ${purchase.status}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editPurchase(${index})">
+                        編集
+                    </button>
+                </td>
+            `;
+        });
+    }
+    
+    updateMonthlyChart(monthlyData) {
+        this.monthlyChart.data.labels = monthlyData.map(item => item.month);
+        this.monthlyChart.data.datasets[0].data = monthlyData.map(item => item.amount);
+        this.monthlyChart.update();
+    }
+    
+    updateCategoryChart(categoryData) {
+        this.categoryChart.data.labels = Object.keys(categoryData);
+        this.categoryChart.data.datasets[0].data = Object.values(categoryData);
+        this.categoryChart.update();
+    }
+    
+    getStatusClass(status) {
+        switch(status) {
+            case '完了': return 'bg-success';
+            case '進行中': return 'bg-warning';
+            case '保留': return 'bg-secondary';
+            default: return 'bg-info';
+        }
+    }
+    
+    handleError(error) {
+        console.error('購買データの取得に失敗しました:', error);
+        alert('データの取得に失敗しました。しばらくしてから再試行してください。');
+    }
+}
+
+// グローバル関数
+function showAddPurchaseModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addPurchaseModal'));
+    modal.show();
+}
+
+function savePurchase() {
+    const form = document.getElementById('purchaseForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const purchaseData = {
+        vendor: document.getElementById('vendor').value,
+        product: document.getElementById('product').value,
+        quantity: parseFloat(document.getElementById('quantity').value),
+        unitPrice: parseFloat(document.getElementById('unitPrice').value),
+        category: document.getElementById('category').value,
+        notes: document.getElementById('notes').value,
+        date: new Date().toISOString().split('T')[0]
+    };
+    
+    google.script.run
+        .withSuccessHandler(function() {
+            bootstrap.Modal.getInstance(document.getElementById('addPurchaseModal')).hide();
+            location.reload();
+        })
+        .withFailureHandler(function(error) {
+            alert('保存に失敗しました: ' + error);
+        })
+        .addPurchase(purchaseData);
+}
+
+function editPurchase(index) {
+    // 編集機能の実装
+    alert('編集機能は実装中です');
+}
+
+// 初期化
+document.addEventListener('DOMContentLoaded', function() {
+    new GM001PurchaseManager();
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
