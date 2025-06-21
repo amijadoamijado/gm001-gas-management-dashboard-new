@@ -1,0 +1,713 @@
+<!-- GM001 データマッピング - 高度なJavaScript関数 -->
+<!-- 旧DM001から移行・統一 -->
+
+<script>
+/**
+ * GM001 データマッピング管理 - 高度なJavaScript関数群
+ * リアルタイムデータマッピングと自動化システム
+ */
+
+// グローバル変数
+let mappingEngine = null;
+let validationEngine = null;
+let autoMapping = {
+  enabled: false,
+  rules: [],
+  confidence: 0.8
+};
+
+/**
+ * 高度なマッピングエンジンクラス
+ */
+class AdvancedMappingEngine {
+  constructor() {
+    this.mappingHistory = [];
+    this.suggestionEngine = new MappingSuggestionEngine();
+    this.validationRules = new MappingValidationRules();
+  }
+  
+  /**
+   * スマートマッピング推奨
+   */
+  suggestMappings(sourceFields, targetFields) {
+    const suggestions = [];
+    
+    targetFields.forEach(target => {
+      const candidates = this.findMappingCandidates(target, sourceFields);
+      if (candidates.length > 0) {
+        suggestions.push({
+          target: target,
+          candidates: candidates.sort((a, b) => b.confidence - a.confidence)
+        });
+      }
+    });
+    
+    return suggestions;
+  }
+  
+  /**
+   * マッピング候補検索
+   */
+  findMappingCandidates(target, sourceFields) {
+    const candidates = [];
+    
+    sourceFields.forEach(source => {
+      const confidence = this.calculateMappingConfidence(source, target);
+      
+      if (confidence > autoMapping.confidence) {
+        candidates.push({
+          source: source,
+          confidence: confidence,
+          reason: this.getMappingReason(source, target, confidence)
+        });
+      }
+    });
+    
+    return candidates;
+  }
+  
+  /**
+   * マッピング信頼度計算
+   */
+  calculateMappingConfidence(source, target) {
+    let confidence = 0;
+    
+    // 名前の一致度
+    const nameMatch = this.calculateNameSimilarity(source.name, target.name);
+    confidence += nameMatch * 0.4;
+    
+    // データ型の一致度
+    const typeMatch = this.calculateTypeCompatibility(source.type, target.type);
+    confidence += typeMatch * 0.3;
+    
+    // 説明・ラベルの一致度
+    const descMatch = this.calculateDescriptionSimilarity(source.description, target.label);
+    confidence += descMatch * 0.2;
+    
+    // 過去のマッピング履歴
+    const historyMatch = this.calculateHistoryMatch(source, target);
+    confidence += historyMatch * 0.1;
+    
+    return Math.min(confidence, 1.0);
+  }
+  
+  /**
+   * 名前の似たようなさ計算
+   */
+  calculateNameSimilarity(name1, name2) {
+    if (!name1 || !name2) return 0;
+    
+    const s1 = name1.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const s2 = name2.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // 完全一致
+    if (s1 === s2) return 1.0;
+    
+    // 部分一致
+    if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+    
+    // レーベンシュタイン距離
+    const distance = this.levenshteinDistance(s1, s2);
+    const maxLength = Math.max(s1.length, s2.length);
+    
+    return Math.max(0, 1 - (distance / maxLength));
+  }
+  
+  /**
+   * レーベンシュタイン距離計算
+   */
+  levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+  
+  /**
+   * データ型互換性計算
+   */
+  calculateTypeCompatibility(sourceType, targetType) {
+    const typeMap = {
+      'NUMBER': ['currency', 'number', 'percentage'],
+      'TEXT': ['text', 'string'],
+      'DATE': ['date', 'datetime'],
+      'BOOLEAN': ['boolean', 'checkbox']
+    };
+    
+    if (sourceType === targetType) return 1.0;
+    
+    const compatibleTypes = typeMap[sourceType] || [];
+    if (compatibleTypes.includes(targetType)) return 0.8;
+    
+    return 0.2;
+  }
+  
+  /**
+   * 説明文の似たようなさ計算
+   */
+  calculateDescriptionSimilarity(description, label) {
+    if (!description || !label) return 0;
+    
+    const keywords1 = this.extractKeywords(description);
+    const keywords2 = this.extractKeywords(label);
+    
+    const intersection = keywords1.filter(k => keywords2.includes(k));
+    const union = [...new Set([...keywords1, ...keywords2])];
+    
+    return union.length > 0 ? intersection.length / union.length : 0;
+  }
+  
+  /**
+   * キーワード抽出
+   */
+  extractKeywords(text) {
+    if (!text) return [];
+    
+    return text.toLowerCase()
+      .replace(/[^a-zあ-ゖア-ヶ一-龯0-9\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 1);
+  }
+  
+  /**
+   * 過去のマッピング履歴一致度
+   */
+  calculateHistoryMatch(source, target) {
+    const historyEntry = this.mappingHistory.find(h => 
+      h.source.name === source.name && h.target.name === target.name
+    );
+    
+    return historyEntry ? historyEntry.successRate : 0;
+  }
+  
+  /**
+   * マッピング理由取得
+   */
+  getMappingReason(source, target, confidence) {
+    const reasons = [];
+    
+    if (this.calculateNameSimilarity(source.name, target.name) > 0.8) {
+      reasons.push('名前が似ている');
+    }
+    
+    if (this.calculateTypeCompatibility(source.type, target.type) > 0.8) {
+      reasons.push('データ型が互換');
+    }
+    
+    if (this.calculateDescriptionSimilarity(source.description, target.label) > 0.6) {
+      reasons.push('説明が一致');
+    }
+    
+    return reasons.length > 0 ? reasons.join(', ') : '一般的な一致';
+  }
+  
+  /**
+   * 自動マッピング実行
+   */
+  executeAutoMapping(sourceFields, targetFields) {
+    const suggestions = this.suggestMappings(sourceFields, targetFields);
+    const autoMappings = {};
+    
+    suggestions.forEach(suggestion => {
+      if (suggestion.candidates.length > 0) {
+        const bestCandidate = suggestion.candidates[0];
+        if (bestCandidate.confidence > autoMapping.confidence) {
+          autoMappings[suggestion.target.name] = {
+            sourceId: bestCandidate.source.id,
+            sourceName: bestCandidate.source.name,
+            sourceType: bestCandidate.source.type,
+            confidence: bestCandidate.confidence,
+            reason: bestCandidate.reason,
+            isAutomatic: true
+          };
+        }
+      }
+    });
+    
+    return autoMappings;
+  }
+}
+
+/**
+ * マッピング推奨エンジン
+ */
+class MappingSuggestionEngine {
+  constructor() {
+    this.suggestionRules = this.initializeSuggestionRules();
+  }
+  
+  /**
+   * 推奨ルール初期化
+   */
+  initializeSuggestionRules() {
+    return [
+      // 売上関連
+      {
+        pattern: /(?:売上|売り上げ|revenue|sales)/i,
+        targets: ['totalRevenue', 'monthlyRevenue'],
+        priority: 1.0
+      },
+      // 利益関連
+      {
+        pattern: /(?:利益|profit|margin)/i,
+        targets: ['totalProfit', 'profitMargin'],
+        priority: 1.0
+      },
+      // 顧客関連
+      {
+        pattern: /(?:顧客|お客|customer|client)/i,
+        targets: ['customerCount', 'newCustomers'],
+        priority: 0.9
+      },
+      // 成長関連
+      {
+        pattern: /(?:成長|伸び|growth|increase)/i,
+        targets: ['growthRate', 'monthlyGrowth'],
+        priority: 0.8
+      }
+    ];
+  }
+  
+  /**
+   * ルールベース推奨
+   */
+  generateRuleBased Suggestions(sourceField) {
+    const suggestions = [];
+    
+    this.suggestionRules.forEach(rule => {
+      if (rule.pattern.test(sourceField.name) || 
+          (sourceField.description && rule.pattern.test(sourceField.description))) {
+        
+        rule.targets.forEach(target => {
+          suggestions.push({
+            target: target,
+            confidence: rule.priority * 0.9,
+            reason: `ルールベース推奨: ${rule.pattern.source}`,
+            type: 'rule-based'
+          });
+        });
+      }
+    });
+    
+    return suggestions;
+  }
+}
+
+/**
+ * マッピング検証ルール
+ */
+class MappingValidationRules {
+  /**
+   * マッピング検証
+   */
+  validateMapping(mapping) {
+    const issues = [];
+    
+    // 必須フィールドチェック
+    const requiredFields = ['totalRevenue', 'customerCount'];
+    const missingRequired = requiredFields.filter(field => !mapping[field]);
+    
+    if (missingRequired.length > 0) {
+      issues.push({
+        type: 'missing-required',
+        severity: 'error',
+        message: `必須フィールドがマッピングされていません: ${missingRequired.join(', ')}`,
+        fields: missingRequired
+      });
+    }
+    
+    // データ型不一致チェック
+    Object.keys(mapping).forEach(targetField => {
+      const mappingInfo = mapping[targetField];
+      const expectedType = this.getExpectedType(targetField);
+      
+      if (!this.isTypeCompatible(mappingInfo.sourceType, expectedType)) {
+        issues.push({
+          type: 'type-mismatch',
+          severity: 'warning',
+          message: `${targetField}: データ型が不一致 (${mappingInfo.sourceType} -> ${expectedType})`,
+          field: targetField
+        });
+      }
+    });
+    
+    // 重複マッピングチェック
+    const sourceCounts = {};
+    Object.values(mapping).forEach(mappingInfo => {
+      sourceCounts[mappingInfo.sourceId] = (sourceCounts[mappingInfo.sourceId] || 0) + 1;
+    });
+    
+    Object.keys(sourceCounts).forEach(sourceId => {
+      if (sourceCounts[sourceId] > 1) {
+        issues.push({
+          type: 'duplicate-source',
+          severity: 'warning',
+          message: `ソースフィールドが複数のターゲットにマッピングされています`,
+          sourceId: sourceId
+        });
+      }
+    });
+    
+    return {
+      isValid: issues.filter(i => i.severity === 'error').length === 0,
+      issues: issues
+    };
+  }
+  
+  /**
+   * 期待されるデータ型取得
+   */
+  getExpectedType(fieldName) {
+    const typeMap = {
+      'totalRevenue': 'NUMBER',
+      'monthlyRevenue': 'NUMBER',
+      'totalProfit': 'NUMBER',
+      'profitMargin': 'NUMBER',
+      'customerCount': 'NUMBER',
+      'newCustomers': 'NUMBER',
+      'growthRate': 'NUMBER',
+      'monthlyGrowth': 'NUMBER'
+    };
+    
+    return typeMap[fieldName] || 'TEXT';
+  }
+  
+  /**
+   * データ型互換性チェック
+   */
+  isTypeCompatible(sourceType, expectedType) {
+    if (sourceType === expectedType) return true;
+    
+    const compatibilityMap = {
+      'NUMBER': ['INTEGER', 'DECIMAL', 'FLOAT', 'CURRENCY'],
+      'TEXT': ['STRING', 'VARCHAR', 'CHAR'],
+      'DATE': ['DATETIME', 'TIMESTAMP'],
+      'BOOLEAN': ['BOOL', 'BIT']
+    };
+    
+    const compatibleTypes = compatibilityMap[expectedType] || [];
+    return compatibleTypes.includes(sourceType);
+  }
+}
+
+/**
+ * プレビューデータレンダリングエンジン
+ */
+class PreviewRenderingEngine {
+  /**
+   * プレビューテーブルレンダリング
+   */
+  renderPreviewTable(data) {
+    if (!data || !data.headers || !data.rows) {
+      return '<p>プレビューデータがありません。</p>';
+    }
+    
+    let html = '<table class="preview-table">';
+    
+    // ヘッダー
+    html += '<thead><tr>';
+    data.headers.forEach(header => {
+      html += `<th>${this.escapeHtml(header.label)}</th>`;
+    });
+    html += '</tr></thead>';
+    
+    // データ行
+    html += '<tbody>';
+    data.rows.slice(0, 10).forEach(row => { // 最初の10行のみ
+      html += '<tr>';
+      data.headers.forEach(header => {
+        const cellValue = row[header.field] || '';
+        const formattedValue = this.formatCellValue(cellValue, header.type);
+        html += `<td>${formattedValue}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody>';
+    
+    html += '</table>';
+    
+    if (data.rows.length > 10) {
+      html += `<p style="margin-top: 15px; color: #7f8c8d;">プレビュー: ${data.rows.length}件中10件表示</p>`;
+    }
+    
+    return html;
+  }
+  
+  /**
+   * セル値フォーマット
+   */
+  formatCellValue(value, type) {
+    if (value === null || value === undefined || value === '') {
+      return '<span style="color: #bdc3c7;">-</span>';
+    }
+    
+    switch (type) {
+      case 'currency':
+        return this.formatCurrency(parseFloat(value));
+      case 'percentage':
+        return this.formatPercentage(parseFloat(value));
+      case 'number':
+        return this.formatNumber(parseFloat(value));
+      case 'date':
+        return this.formatDate(value);
+      default:
+        return this.escapeHtml(String(value));
+    }
+  }
+  
+  /**
+   * 通貨フォーマット
+   */
+  formatCurrency(value) {
+    if (isNaN(value)) return '-';
+    return new Intl.NumberFormat('ja-JP', {
+      style: 'currency',
+      currency: 'JPY',
+      maximumFractionDigits: 0
+    }).format(value);
+  }
+  
+  /**
+   * パーセンテージフォーマット
+   */
+  formatPercentage(value) {
+    if (isNaN(value)) return '-';
+    return value.toFixed(1) + '%';
+  }
+  
+  /**
+   * 数値フォーマット
+   */
+  formatNumber(value) {
+    if (isNaN(value)) return '-';
+    return new Intl.NumberFormat('ja-JP').format(value);
+  }
+  
+  /**
+   * 日付フォーマット
+   */
+  formatDate(value) {
+    try {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return String(value);
+      return date.toLocaleDateString('ja-JP');
+    } catch (e) {
+      return String(value);
+    }
+  }
+  
+  /**
+   * HTMLエスケープ
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+}
+
+/**
+ * エクスポート管理エンジン
+ */
+class MappingExportEngine {
+  /**
+   * マッピング設定CSVエクスポート
+   */
+  exportMappingConfig(mapping, filename = 'GM001_mapping_config.csv') {
+    const csvData = [];
+    csvData.push(['Target Field', 'Source Field', 'Source Type', 'Confidence', 'Is Automatic']);
+    
+    Object.keys(mapping).forEach(targetField => {
+      const mappingInfo = mapping[targetField];
+      csvData.push([
+        targetField,
+        mappingInfo.sourceName,
+        mappingInfo.sourceType,
+        mappingInfo.confidence || '',
+        mappingInfo.isAutomatic ? 'Yes' : 'No'
+      ]);
+    });
+    
+    this.downloadCSV(csvData, filename);
+  }
+  
+  /**
+   * プレビューデータCSVエクスポート
+   */
+  exportPreviewData(data, filename = 'GM001_preview_data.csv') {
+    if (!data || !data.headers || !data.rows) {
+      alert('エクスポートするデータがありません。');
+      return;
+    }
+    
+    const csvData = [];
+    
+    // ヘッダー
+    csvData.push(data.headers.map(h => h.label));
+    
+    // データ行
+    data.rows.forEach(row => {
+      const rowData = data.headers.map(header => {
+        const value = row[header.field];
+        return value !== null && value !== undefined ? String(value) : '';
+      });
+      csvData.push(rowData);
+    });
+    
+    this.downloadCSV(csvData, filename);
+  }
+  
+  /**
+   * CSVダウンロード
+   */
+  downloadCSV(data, filename) {
+    const csvContent = data.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { 
+      type: 'text/csv;charset=utf-8;' 
+    });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+// グローバルインスタンス初期化
+mappingEngine = new AdvancedMappingEngine();
+validationEngine = new MappingValidationRules();
+const previewEngine = new PreviewRenderingEngine();
+const exportEngine = new MappingExportEngine();
+
+/**
+ * 高度なマッピング関数群
+ */
+
+// スマートマッピング推奨表示
+function showSmartSuggestions() {
+  if (!sourceFields || sourceFields.length === 0) {
+    showStatus('error', 'ソースフィールドが読み込まれていません');
+    return;
+  }
+  
+  const suggestions = mappingEngine.suggestMappings(sourceFields, dashboardFields);
+  renderSuggestions(suggestions);
+}
+
+// 自動マッピング実行
+function executeAutoMapping() {
+  if (!sourceFields || sourceFields.length === 0) {
+    showStatus('error', 'ソースフィールドが読み込まれていません');
+    return;
+  }
+  
+  const autoMappings = mappingEngine.executeAutoMapping(sourceFields, dashboardFields);
+  
+  if (Object.keys(autoMappings).length === 0) {
+    showStatus('warning', '自動マッピングの候補が見つかりませんでした');
+    return;
+  }
+  
+  // 既存のマッピングとマージ
+  currentMapping = { ...currentMapping, ...autoMappings };
+  renderDashboardFields();
+  
+  const count = Object.keys(autoMappings).length;
+  showStatus('success', `${count}件のマッピングを自動適用しました`);
+}
+
+// マッピング検証実行
+function validateCurrentMapping() {
+  if (Object.keys(currentMapping).length === 0) {
+    showStatus('warning', '検証するマッピングがありません');
+    return;
+  }
+  
+  const validation = validationEngine.validateMapping(currentMapping);
+  renderValidationResults(validation);
+}
+
+// プレビューレンダリング
+function renderPreview(data) {
+  const previewContent = document.getElementById('previewContent');
+  const tableHtml = previewEngine.renderPreviewTable(data);
+  previewContent.innerHTML = tableHtml;
+}
+
+// マッピング設定エクスポート
+function exportMappingConfig() {
+  if (Object.keys(currentMapping).length === 0) {
+    showStatus('error', 'エクスポートするマッピングがありません');
+    return;
+  }
+  
+  exportEngine.exportMappingConfig(currentMapping);
+  showStatus('success', 'マッピング設定をエクスポートしました');
+}
+
+// プレビューデータエクスポート
+function exportPreviewData() {
+  const previewSection = document.getElementById('previewSection');
+  if (previewSection.style.display === 'none') {
+    showStatus('error', 'まずプレビューを実行してください');
+    return;
+  }
+  
+  // プレビューデータはグローバル変数で保持されていると仮定
+  if (window.lastPreviewData) {
+    exportEngine.exportPreviewData(window.lastPreviewData);
+    showStatus('success', 'プレビューデータをエクスポートしました');
+  } else {
+    showStatus('error', 'エクスポートするプレビューデータがありません');
+  }
+}
+
+// 自動マッピング設定切り替え
+function toggleAutoMapping() {
+  autoMapping.enabled = !autoMapping.enabled;
+  
+  const toggle = document.getElementById('autoMappingToggle');
+  if (toggle) {
+    toggle.textContent = autoMapping.enabled ? '自動マッピング: ON' : '自動マッピング: OFF';
+  }
+  
+  const status = autoMapping.enabled ? '有効' : '無効';
+  showStatus('success', `自動マッピングを${status}にしました`);
+}
+
+// 信頼度闾値設定
+function setConfidenceThreshold(threshold) {
+  autoMapping.confidence = parseFloat(threshold);
+  showStatus('success', `信頼度闾値を${(threshold * 100).toFixed(0)}%に設定しました`);
+}
+
+console.log('GM001 高度マッピングシステム読み込み完了');
+</script>

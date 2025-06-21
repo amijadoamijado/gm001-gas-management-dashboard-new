@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GM001 - データマッピング管理</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .header h1 {
+      color: #2c3e50;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .project-code {
+      display: inline-block;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    
+    .mapping-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    
+    .mapping-panel {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    
+    .panel-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .panel-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.2rem;
+    }
+    
+    .panel-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .source-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    
+    .source-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border: 1px solid #f0f0f0;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: grab;
+      transition: all 0.3s ease;
+    }
+    
+    .source-item:hover {
+      background: #f8f9fa;
+      border-color: #3498db;
+      transform: translateY(-2px);
+    }
+    
+    .source-item.dragging {
+      opacity: 0.5;
+      transform: rotate(5deg);
+    }
+    
+    .source-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .source-name {
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 4px;
+    }
+    
+    .source-type {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+    }
+    
+    .mapping-target {
+      min-height: 300px;
+      border: 2px dashed #bdc3c7;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .mapping-target.drag-over {
+      border-color: #3498db;
+      background: rgba(52, 152, 219, 0.1);
+      border-style: solid;
+    }
+    
+    .mapping-target.has-mappings {
+      border-color: #27ae60;
+      background: rgba(39, 174, 96, 0.05);
+    }
+    
+    .mapped-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      border: 1px solid #27ae60;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .mapped-field-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .mapped-field-name {
+      font-weight: 600;
+      color: #27ae60;
+      margin-bottom: 4px;
+    }
+    
+    .mapped-field-source {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+    }
+    
+    .remove-mapping {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.3s ease;
+    }
+    
+    .remove-mapping:hover {
+      background: #c0392b;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn:hover {
+      background: linear-gradient(135deg, #2980b9, #1f639a);
+      transform: translateY(-2px);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+    }
+    
+    .btn-success:hover {
+      background: linear-gradient(135deg, #229954, #27ae60);
+    }
+    
+    .btn-warning {
+      background: linear-gradient(135deg, #f39c12, #e67e22);
+    }
+    
+    .btn-warning:hover {
+      background: linear-gradient(135deg, #e67e22, #d35400);
+    }
+    
+    .preview-section {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      margin-top: 30px;
+    }
+    
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    
+    .preview-table th,
+    .preview-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .preview-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      border-radius: 20px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .status-success {
+      background: #27ae60;
+    }
+    
+    .status-error {
+      background: #e74c3c;
+    }
+    
+    .status-loading {
+      background: #f39c12;
+    }
+    
+    @media (max-width: 1200px) {
+      .mapping-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+        margin: 10px;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .controls {
+        flex-direction: column;
+      }
+      
+      .btn {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="project-code">GM001</div>
+      <h1>データマッピング管理</h1>
+      <div class="subtitle">データソースとダッシュボードのフィールドマッピング</div>
+    </div>
+    
+    <div class="controls">
+      <button class="btn" onclick="loadSources()">
+        🔄 ソース更新
+      </button>
+      <button class="btn btn-success" onclick="saveMapping()">
+        💾 マッピング保存
+      </button>
+      <button class="btn btn-warning" onclick="resetMapping()">
+        🔄 リセット
+      </button>
+      <button class="btn" onclick="previewData()">
+        👁️ プレビュー
+      </button>
+    </div>
+    
+    <div class="mapping-grid">
+      <!-- データソースパネル -->
+      <div class="mapping-panel">
+        <div class="panel-header">
+          <div class="panel-icon" style="background: linear-gradient(135deg, #3498db, #2980b9);">
+            📊
+          </div>
+          <div class="panel-title">データソースフィールド</div>
+        </div>
+        <div class="source-list" id="sourceFields">
+          <div class="loading-message">データソース情報を読み込み中...</div>
+        </div>
+      </div>
+      
+      <!-- ダッシュボードパネル -->
+      <div class="mapping-panel">
+        <div class="panel-header">
+          <div class="panel-icon" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">
+            🎯
+          </div>
+          <div class="panel-title">ダッシュボードフィールド</div>
+        </div>
+        <div class="mapping-target" id="mappingTarget">
+          <div class="empty-state">
+            <p>データソースフィールドをここにドラッグアンドドロップ</p>
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-top: 10px;">マッピングを開始してください</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- プレビューセクション -->
+    <div class="preview-section" id="previewSection" style="display: none;">
+      <div class="panel-header">
+        <div class="panel-icon" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+          👁️
+        </div>
+        <div class="panel-title">データプレビュー</div>
+      </div>
+      <div id="previewContent">
+        <!-- プレビューデータがここに表示される -->
+      </div>
+    </div>
+  </div>
+  
+  <div id="statusIndicator" class="status-indicator"></div>
+  
+  <script>
+    // GM001 データマッピング管理 JavaScript
+    let currentMapping = {};
+    let sourceFields = [];
+    let dashboardFields = [
+      { name: 'totalRevenue', label: '総売上', type: 'currency' },
+      { name: 'monthlyRevenue', label: '月別売上', type: 'currency' },
+      { name: 'totalProfit', label: '総利益', type: 'currency' },
+      { name: 'profitMargin', label: '利益率', type: 'percentage' },
+      { name: 'customerCount', label: '顧客数', type: 'number' },
+      { name: 'newCustomers', label: '新規顧客', type: 'number' },
+      { name: 'growthRate', label: '成長率', type: 'percentage' },
+      { name: 'monthlyGrowth', label: '月成長率', type: 'percentage' }
+    ];
+    
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeMapping();
+      loadSources();
+      loadExistingMapping();
+    });
+    
+    // マッピング初期化
+    function initializeMapping() {
+      setupDragAndDrop();
+      renderDashboardFields();
+    }
+    
+    // ドラッグアンドドロップ設定
+    function setupDragAndDrop() {
+      const mappingTarget = document.getElementById('mappingTarget');
+      
+      mappingTarget.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
+      });
+      
+      mappingTarget.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+      });
+      
+      mappingTarget.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        
+        const fieldData = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const targetField = e.target.closest('.dashboard-field');
+        
+        if (targetField) {
+          const targetId = targetField.dataset.fieldId;
+          addMapping(fieldData, targetId);
+        }
+      });
+    }
+    
+    // ダッシュボードフィールドレンダリング
+    function renderDashboardFields() {
+      const mappingTarget = document.getElementById('mappingTarget');
+      mappingTarget.innerHTML = '';
+      
+      dashboardFields.forEach(field => {
+        const fieldElement = createDashboardFieldElement(field);
+        mappingTarget.appendChild(fieldElement);
+      });
+      
+      updateMappingTargetState();
+    }
+    
+    // ダッシュボードフィールド要素作成
+    function createDashboardFieldElement(field) {
+      const div = document.createElement('div');
+      div.className = 'dashboard-field';
+      div.dataset.fieldId = field.name;
+      
+      const mapping = currentMapping[field.name];
+      
+      if (mapping) {
+        div.className += ' mapped-field';
+        div.innerHTML = `
+          <div class="mapped-field-info">
+            <div class="mapped-field-name">${field.label}</div>
+            <div class="mapped-field-source">ソース: ${mapping.sourceName}</div>
+          </div>
+          <button class="remove-mapping" onclick="removeMapping('${field.name}')">削除</button>
+        `;
+      } else {
+        div.className += ' empty-field';
+        div.innerHTML = `
+          <div class="field-placeholder">
+            <strong>${field.label}</strong>
+            <br>
+            <small>${field.type}</small>
+          </div>
+        `;
+      }
+      
+      return div;
+    }
+    
+    // データソースフィールド読み込み
+    function loadSources() {
+      showStatus('loading', 'データソース情報を読み込み中...');
+      
+      google.script.run
+        .withSuccessHandler(onSourcesLoaded)
+        .withFailureHandler(onSourcesError)
+        .getDataSourceFields({ projectCode: 'GM001' });
+    }
+    
+    // データソースフィールド読み込み成功
+    function onSourcesLoaded(fields) {
+      sourceFields = fields;
+      renderSourceFields();
+      hideStatus();
+    }
+    
+    // データソースフィールド読み込みエラー
+    function onSourcesError(error) {
+      console.error('データソース情報読み込みエラー:', error);
+      showStatus('error', 'データソース情報の読み込みに失敗しました');
+      
+      // デモデータを表示
+      showDemoSourceFields();
+    }
+    
+    // データソースフィールドレンダリング
+    function renderSourceFields() {
+      const sourceList = document.getElementById('sourceFields');
+      sourceList.innerHTML = '';
+      
+      sourceFields.forEach(field => {
+        const fieldElement = createSourceFieldElement(field);
+        sourceList.appendChild(fieldElement);
+      });
+    }
+    
+    // データソースフィールド要素作成
+    function createSourceFieldElement(field) {
+      const div = document.createElement('div');
+      div.className = 'source-item';
+      div.draggable = true;
+      
+      div.innerHTML = `
+        <div class="source-info">
+          <div class="source-name">${field.name}</div>
+          <div class="source-type">${field.type} - ${field.description || '説明なし'}</div>
+        </div>
+      `;
+      
+      div.addEventListener('dragstart', function(e) {
+        e.dataTransfer.setData('text/plain', JSON.stringify(field));
+        this.classList.add('dragging');
+      });
+      
+      div.addEventListener('dragend', function(e) {
+        this.classList.remove('dragging');
+      });
+      
+      return div;
+    }
+    
+    // マッピング追加
+    function addMapping(sourceField, targetFieldId) {
+      currentMapping[targetFieldId] = {
+        sourceId: sourceField.id,
+        sourceName: sourceField.name,
+        sourceType: sourceField.type
+      };
+      
+      renderDashboardFields();
+      showStatus('success', `${sourceField.name} をマッピングしました`);
+    }
+    
+    // マッピング削除
+    function removeMapping(targetFieldId) {
+      delete currentMapping[targetFieldId];
+      renderDashboardFields();
+      showStatus('success', 'マッピングを削除しました');
+    }
+    
+    // マッピング保存
+    function saveMapping() {
+      if (Object.keys(currentMapping).length === 0) {
+        showStatus('error', '保存するマッピングがありません');
+        return;
+      }
+      
+      showStatus('loading', 'マッピングを保存中...');
+      
+      google.script.run
+        .withSuccessHandler(onMappingSaved)
+        .withFailureHandler(onMappingSaveError)
+        .saveFieldMapping({
+          projectCode: 'GM001',
+          mapping: currentMapping
+        });
+    }
+    
+    // マッピング保存成功
+    function onMappingSaved(result) {
+      showStatus('success', 'マッピングを保存しました');
+    }
+    
+    // マッピング保存エラー
+    function onMappingSaveError(error) {
+      console.error('マッピング保存エラー:', error);
+      showStatus('error', 'マッピングの保存に失敗しました');
+    }
+    
+    // マッピングリセット
+    function resetMapping() {
+      if (confirm('すべてのマッピングをリセットしますか？')) {
+        currentMapping = {};
+        renderDashboardFields();
+        showStatus('success', 'マッピングをリセットしました');
+      }
+    }
+    
+    // データプレビュー
+    function previewData() {
+      if (Object.keys(currentMapping).length === 0) {
+        showStatus('error', 'プレビューするマッピングがありません');
+        return;
+      }
+      
+      showStatus('loading', 'データプレビューを作成中...');
+      
+      google.script.run
+        .withSuccessHandler(onPreviewLoaded)
+        .withFailureHandler(onPreviewError)
+        .getPreviewData({
+          projectCode: 'GM001',
+          mapping: currentMapping
+        });
+    }
+    
+    // プレビュー読み込み成功
+    function onPreviewLoaded(data) {
+      renderPreview(data);
+      document.getElementById('previewSection').style.display = 'block';
+      showStatus('success', 'プレビューを作成しました');
+    }
+    
+    // プレビューエラー
+    function onPreviewError(error) {
+      console.error('プレビューエラー:', error);
+      showStatus('error', 'プレビューの作成に失敗しました');
+    }
+    
+    // ステータス表示
+    function showStatus(type, message) {
+      const indicator = document.getElementById('statusIndicator');
+      indicator.textContent = message;
+      indicator.className = 'status-indicator status-' + type;
+      indicator.style.display = 'block';
+    }
+    
+    function hideStatus() {
+      setTimeout(() => {
+        document.getElementById('statusIndicator').style.display = 'none';
+      }, 3000);
+    }
+    
+    // マッピングターゲット状態更新
+    function updateMappingTargetState() {
+      const mappingTarget = document.getElementById('mappingTarget');
+      const hasMappings = Object.keys(currentMapping).length > 0;
+      
+      if (hasMappings) {
+        mappingTarget.classList.add('has-mappings');
+      } else {
+        mappingTarget.classList.remove('has-mappings');
+      }
+    }
+    
+    // デモデータ表示
+    function showDemoSourceFields() {
+      const demoFields = [
+        { id: 'revenue', name: '売上金額', type: 'NUMBER', description: '月別売上合計' },
+        { id: 'profit', name: '利益金額', type: 'NUMBER', description: '月別利益合計' },
+        { id: 'customers', name: '顧客数', type: 'NUMBER', description: 'アクティブ顧客数' },
+        { id: 'orders', name: '注文数', type: 'NUMBER', description: '月別注文件数' },
+        { id: 'date', name: '日付', type: 'DATE', description: 'データ日付' }
+      ];
+      
+      sourceFields = demoFields;
+      renderSourceFields();
+      hideStatus();
+    }
+    
+    // 既存マッピング読み込み
+    function loadExistingMapping() {
+      google.script.run
+        .withSuccessHandler(onExistingMappingLoaded)
+        .withFailureHandler(() => {
+          // エラー時は無視（新規マッピング）
+        })
+        .getExistingMapping({ projectCode: 'GM001' });
+    }
+    
+    // 既存マッピング読み込み成功
+    function onExistingMappingLoaded(mapping) {
+      if (mapping && typeof mapping === 'object') {
+        currentMapping = mapping;
+        renderDashboardFields();
+      }
+    }
+  </script>
+</body>
+</html>
