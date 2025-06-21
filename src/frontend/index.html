@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GM001 - 経営ダッシュボード</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .header h1 {
+      color: #2c3e50;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .header .subtitle {
+      color: #7f8c8d;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    
+    .project-code {
+      display: inline-block;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .card-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 1.5rem;
+    }
+    
+    .card-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .metric-label {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-top: 20px;
+    }
+    
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    .control-group label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #555;
+    }
+    
+    .control-group select,
+    .control-group input,
+    .control-group button {
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+      background: linear-gradient(135deg, #2980b9, #1f639a);
+      transform: translateY(-2px);
+    }
+    
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      border-radius: 20px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      z-index: 1000;
+    }
+    
+    .status-loading {
+      background: #f39c12;
+    }
+    
+    .status-success {
+      background: #27ae60;
+    }
+    
+    .status-error {
+      background: #e74c3c;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      color: #95a5a6;
+      font-size: 0.9rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+        margin: 10px;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .controls {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="project-code">GM001</div>
+      <h1>経営ダッシュボード</h1>
+      <div class="subtitle">リアルタイム経営指標監視システム</div>
+    </div>
+    
+    <div class="controls">
+      <div class="control-group">
+        <label>データ範囲</label>
+        <select id="dateRange">
+          <option value="7">過去7日間</option>
+          <option value="30" selected>過去30日間</option>
+          <option value="90">過去90日間</option>
+          <option value="365">過去1年間</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label>更新間隔</label>
+        <select id="refreshInterval">
+          <option value="30">30秒</option>
+          <option value="60" selected>1分</option>
+          <option value="300">5分</option>
+          <option value="900">15分</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label>アクション</label>
+        <button class="btn" onclick="refreshData()">データ更新</button>
+      </div>
+    </div>
+    
+    <div class="grid">
+      <!-- 売上メトリクス -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">
+            💰
+          </div>
+          <div class="card-title">総売上</div>
+        </div>
+        <div class="metric-value" style="color: #27ae60;" id="totalRevenue">
+          ¥0
+        </div>
+        <div class="metric-label">今月の累計売上</div>
+      </div>
+      
+      <!-- 利益メトリクス -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: linear-gradient(135deg, #3498db, #2980b9);">
+            📈
+          </div>
+          <div class="card-title">総利益</div>
+        </div>
+        <div class="metric-value" style="color: #3498db;" id="totalProfit">
+          ¥0
+        </div>
+        <div class="metric-label">今月の累計利益</div>
+      </div>
+      
+      <!-- 顧客数メトリクス -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+            👥
+          </div>
+          <div class="card-title">顧客数</div>
+        </div>
+        <div class="metric-value" style="color: #9b59b6;" id="customerCount">
+          0
+        </div>
+        <div class="metric-label">アクティブ顧客数</div>
+      </div>
+      
+      <!-- 成長率メトリクス -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: linear-gradient(135deg, #e67e22, #d35400);">
+            📊
+          </div>
+          <div class="card-title">成長率</div>
+        </div>
+        <div class="metric-value" style="color: #e67e22;" id="growthRate">
+          0.0%
+        </div>
+        <div class="metric-label">前月比成長率</div>
+      </div>
+    </div>
+    
+    <!-- チャートセクション -->
+    <div class="grid">
+      <div class="card" style="grid-column: span 2;">
+        <div class="card-header">
+          <div class="card-icon" style="background: linear-gradient(135deg, #1abc9c, #16a085);">
+            📈
+          </div>
+          <div class="card-title">売上推移</div>
+        </div>
+        <div class="chart-container">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>GM001 経営ダッシュボード - <span id="lastUpdate">最終更新: 未更新</span></p>
+      <p>© 2024 Management Dashboard System</p>
+    </div>
+  </div>
+  
+  <div id="statusIndicator" class="status-indicator" style="display: none;"></div>
+  
+  <script>
+    // GM001 経営ダッシュボード JavaScript
+    let revenueChart;
+    let refreshTimer;
+    
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeCharts();
+      loadInitialData();
+      setupAutoRefresh();
+    });
+    
+    // チャート初期化
+    function initializeCharts() {
+      const ctx = document.getElementById('revenueChart').getContext('2d');
+      revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: '売上',
+            data: [],
+            borderColor: '#3498db',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '¥' + value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // 初期データ読み込み
+    function loadInitialData() {
+      showStatus('loading', 'データを読み込み中...');
+      
+      // Google Apps Script からデータを取得
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onDataError)
+        .getDashboardData({
+          dateRange: document.getElementById('dateRange').value
+        });
+    }
+    
+    // データ更新
+    function refreshData() {
+      loadInitialData();
+    }
+    
+    // データ読み込み成功時
+    function onDataLoaded(data) {
+      updateMetrics(data.metrics);
+      updateCharts(data.chartData);
+      updateLastUpdateTime();
+      showStatus('success', 'データ更新完了');
+      
+      setTimeout(() => {
+        hideStatus();
+      }, 2000);
+    }
+    
+    // データ読み込みエラー時
+    function onDataError(error) {
+      console.error('データ読み込みエラー:', error);
+      showStatus('error', 'データ読み込みに失敗しました');
+      
+      // デモデータを表示
+      showDemoData();
+    }
+    
+    // メトリクス更新
+    function updateMetrics(metrics) {
+      document.getElementById('totalRevenue').textContent = 
+        '¥' + metrics.totalRevenue.toLocaleString();
+      document.getElementById('totalProfit').textContent = 
+        '¥' + metrics.totalProfit.toLocaleString();
+      document.getElementById('customerCount').textContent = 
+        metrics.customerCount.toLocaleString();
+      document.getElementById('growthRate').textContent = 
+        metrics.growthRate.toFixed(1) + '%';
+    }
+    
+    // チャート更新
+    function updateCharts(chartData) {
+      revenueChart.data.labels = chartData.labels;
+      revenueChart.data.datasets[0].data = chartData.revenue;
+      revenueChart.update();
+    }
+    
+    // 最終更新時刻更新
+    function updateLastUpdateTime() {
+      const now = new Date();
+      document.getElementById('lastUpdate').textContent = 
+        '最終更新: ' + now.toLocaleString('ja-JP');
+    }
+    
+    // ステータス表示
+    function showStatus(type, message) {
+      const indicator = document.getElementById('statusIndicator');
+      indicator.textContent = message;
+      indicator.className = 'status-indicator status-' + type;
+      indicator.style.display = 'block';
+    }
+    
+    // ステータス非表示
+    function hideStatus() {
+      document.getElementById('statusIndicator').style.display = 'none';
+    }
+    
+    // 自動更新設定
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById('refreshInterval');
+      
+      function updateRefreshTimer() {
+        if (refreshTimer) {
+          clearInterval(refreshTimer);
+        }
+        
+        const interval = parseInt(intervalSelect.value) * 1000;
+        refreshTimer = setInterval(loadInitialData, interval);
+      }
+      
+      intervalSelect.addEventListener('change', updateRefreshTimer);
+      updateRefreshTimer();
+    }
+    
+    // デモデータ表示
+    function showDemoData() {
+      const demoMetrics = {
+        totalRevenue: 12500000,
+        totalProfit: 3750000,
+        customerCount: 1250,
+        growthRate: 8.5
+      };
+      
+      const demoChartData = {
+        labels: ['1日', '2日', '3日', '4日', '5日', '6日', '7日'],
+        revenue: [1500000, 1800000, 1650000, 2100000, 1950000, 2250000, 1900000]
+      };
+      
+      updateMetrics(demoMetrics);
+      updateCharts(demoChartData);
+      updateLastUpdateTime();
+    }
+    
+    // 設定変更時のイベントハンドラ
+    document.getElementById('dateRange').addEventListener('change', function() {
+      refreshData();
+    });
+  </script>
+</body>
+</html>

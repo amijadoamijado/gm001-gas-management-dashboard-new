@@ -1,0 +1,436 @@
+<!-- GM001 経営ダッシュボード - メインスクリプト -->
+<!-- 旧DM001から移行・統一 -->
+
+<script>
+/**
+ * GM001 経営ダッシュボード - JavaScript関数群
+ * リアルタイム経営指標監視システム
+ */
+
+// グローバル変数
+let currentData = null;
+let lastUpdateTime = null;
+let autoRefreshEnabled = true;
+let refreshInterval = null;
+
+/**
+ * 初期化処理
+ */
+function initializeDashboard() {
+  console.log('GM001 ダッシュボード初期化開始');
+  
+  try {
+    // UI要素の初期化
+    initializeUIElements();
+    
+    // イベントリスナーの設定
+    setupEventListeners();
+    
+    // 初期データの読み込み
+    loadDashboardData();
+    
+    // 自動更新の設定
+    setupAutoRefresh();
+    
+    console.log('GM001 ダッシュボード初期化完了');
+    
+  } catch (error) {
+    console.error('ダッシュボード初期化エラー:', error);
+    showErrorMessage('システムの初期化に失敗しました');
+  }
+}
+
+/**
+ * UI要素の初期化
+ */
+function initializeUIElements() {
+  // プロジェクトコード表示
+  const projectCodeElements = document.querySelectorAll('.project-code');
+  projectCodeElements.forEach(el => {
+    el.textContent = 'GM001';
+  });
+  
+  // 現在時刻表示
+  updateCurrentTime();
+  
+  // ローディング状態のリセット
+  hideLoadingIndicators();
+}
+
+/**
+ * イベントリスナーの設定
+ */
+function setupEventListeners() {
+  // 更新ボタン
+  const refreshButton = document.getElementById('refreshButton');
+  if (refreshButton) {
+    refreshButton.addEventListener('click', handleRefreshClick);
+  }
+  
+  // 期間選択
+  const dateRangeSelect = document.getElementById('dateRange');
+  if (dateRangeSelect) {
+    dateRangeSelect.addEventListener('change', handleDateRangeChange);
+  }
+  
+  // 自動更新切り替え
+  const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+  if (autoRefreshToggle) {
+    autoRefreshToggle.addEventListener('change', handleAutoRefreshToggle);
+  }
+  
+  // エクスポートボタン
+  const exportButton = document.getElementById('exportButton');
+  if (exportButton) {
+    exportButton.addEventListener('click', handleExportClick);
+  }
+}
+
+/**
+ * ダッシュボードデータの読み込み
+ */
+function loadDashboardData() {
+  showLoadingIndicator('データを読み込み中...');
+  
+  const dateRange = document.getElementById('dateRange')?.value || '30';
+  
+  // Google Apps Script関数を呼び出し
+  google.script.run
+    .withSuccessHandler(onDataLoadSuccess)
+    .withFailureHandler(onDataLoadError)
+    .getDashboardData({
+      dateRange: parseInt(dateRange),
+      projectCode: 'GM001'
+    });
+}
+
+/**
+ * データ読み込み成功時の処理
+ */
+function onDataLoadSuccess(data) {
+  try {
+    currentData = data;
+    lastUpdateTime = new Date();
+    
+    // メトリクス更新
+    updateMetricsDisplay(data.metrics);
+    
+    // チャート更新
+    updateChartsDisplay(data.charts);
+    
+    // アラート更新
+    updateAlertsDisplay(data.alerts);
+    
+    // 最終更新時刻更新
+    updateLastUpdateDisplay();
+    
+    // ローディング非表示
+    hideLoadingIndicator();
+    
+    // 成功メッセージ表示
+    showSuccessMessage('データを更新しました');
+    
+    console.log('GM001 データ更新完了:', data);
+    
+  } catch (error) {
+    console.error('データ処理エラー:', error);
+    onDataLoadError(error);
+  }
+}
+
+/**
+ * データ読み込みエラー時の処理
+ */
+function onDataLoadError(error) {
+  console.error('データ読み込みエラー:', error);
+  
+  hideLoadingIndicator();
+  showErrorMessage('データの読み込みに失敗しました: ' + error.message);
+  
+  // デモデータを表示（開発時）
+  if (isDevelopmentMode()) {
+    loadDemoData();
+  }
+}
+
+/**
+ * メトリクス表示の更新
+ */
+function updateMetricsDisplay(metrics) {
+  if (!metrics) return;
+  
+  // 売上
+  updateMetricElement('totalRevenue', metrics.totalRevenue, 'currency');
+  updateMetricElement('monthlyRevenue', metrics.monthlyRevenue, 'currency');
+  
+  // 利益
+  updateMetricElement('totalProfit', metrics.totalProfit, 'currency');
+  updateMetricElement('profitMargin', metrics.profitMargin, 'percentage');
+  
+  // 顧客
+  updateMetricElement('customerCount', metrics.customerCount, 'number');
+  updateMetricElement('newCustomers', metrics.newCustomers, 'number');
+  
+  // 成長率
+  updateMetricElement('growthRate', metrics.growthRate, 'percentage');
+  updateMetricElement('monthlyGrowth', metrics.monthlyGrowth, 'percentage');
+}
+
+/**
+ * 個別メトリック要素の更新
+ */
+function updateMetricElement(elementId, value, format) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  
+  let formattedValue;
+  
+  switch (format) {
+    case 'currency':
+      formattedValue = formatCurrency(value);
+      break;
+    case 'percentage':
+      formattedValue = formatPercentage(value);
+      break;
+    case 'number':
+      formattedValue = formatNumber(value);
+      break;
+    default:
+      formattedValue = value;
+  }
+  
+  // アニメーション付きで値を更新
+  animateValueChange(element, formattedValue);
+}
+
+/**
+ * 値変更アニメーション
+ */
+function animateValueChange(element, newValue) {
+  element.style.opacity = '0.5';
+  
+  setTimeout(() => {
+    element.textContent = newValue;
+    element.style.opacity = '1';
+    element.style.transition = 'opacity 0.3s ease';
+  }, 150);
+}
+
+/**
+ * 通貨フォーマット
+ */
+function formatCurrency(value) {
+  if (value === null || value === undefined) return '¥0';
+  return new Intl.NumberFormat('ja-JP', {
+    style: 'currency',
+    currency: 'JPY',
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+/**
+ * パーセンテージフォーマット
+ */
+function formatPercentage(value) {
+  if (value === null || value === undefined) return '0.0%';
+  return (value).toFixed(1) + '%';
+}
+
+/**
+ * 数値フォーマット
+ */
+function formatNumber(value) {
+  if (value === null || value === undefined) return '0';
+  return new Intl.NumberFormat('ja-JP').format(value);
+}
+
+/**
+ * 自動更新の設定
+ */
+function setupAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
+  
+  if (autoRefreshEnabled) {
+    refreshInterval = setInterval(() => {
+      loadDashboardData();
+    }, 60000); // 1分間隔
+  }
+}
+
+/**
+ * 現在時刻更新
+ */
+function updateCurrentTime() {
+  const now = new Date();
+  const timeString = now.toLocaleString('ja-JP');
+  
+  const timeElements = document.querySelectorAll('.current-time');
+  timeElements.forEach(el => {
+    el.textContent = timeString;
+  });
+}
+
+/**
+ * 最終更新時刻表示更新
+ */
+function updateLastUpdateDisplay() {
+  if (!lastUpdateTime) return;
+  
+  const timeString = lastUpdateTime.toLocaleString('ja-JP');
+  const elements = document.querySelectorAll('.last-update');
+  
+  elements.forEach(el => {
+    el.textContent = '最終更新: ' + timeString;
+  });
+}
+
+/**
+ * イベントハンドラ
+ */
+function handleRefreshClick() {
+  loadDashboardData();
+}
+
+function handleDateRangeChange() {
+  loadDashboardData();
+}
+
+function handleAutoRefreshToggle(event) {
+  autoRefreshEnabled = event.target.checked;
+  setupAutoRefresh();
+}
+
+function handleExportClick() {
+  if (!currentData) {
+    showErrorMessage('エクスポートするデータがありません');
+    return;
+  }
+  
+  // CSVエクスポート
+  exportToCSV(currentData);
+}
+
+/**
+ * CSVエクスポート
+ */
+function exportToCSV(data) {
+  try {
+    // CSV用のデータを準備
+    const csvData = prepareCsvData(data);
+    
+    // Google Apps Script関数を呼び出し
+    google.script.run
+      .withSuccessHandler(onExportSuccess)
+      .withFailureHandler(onExportError)
+      .exportDashboardData(csvData);
+      
+    showLoadingIndicator('エクスポート中...');
+    
+  } catch (error) {
+    console.error('エクスポートエラー:', error);
+    showErrorMessage('エクスポートに失敗しました');
+  }
+}
+
+/**
+ * メッセージ表示関数
+ */
+function showSuccessMessage(message) {
+  showMessage(message, 'success');
+}
+
+function showErrorMessage(message) {
+  showMessage(message, 'error');
+}
+
+function showMessage(message, type) {
+  // トーストメッセージの表示
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  
+  document.body.appendChild(toast);
+  
+  // アニメーション
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 100);
+  
+  // 自動削除
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, 3000);
+}
+
+/**
+ * ローディング表示
+ */
+function showLoadingIndicator(message = 'ロード中...') {
+  const indicator = document.getElementById('loadingIndicator');
+  if (indicator) {
+    indicator.textContent = message;
+    indicator.style.display = 'block';
+  }
+}
+
+function hideLoadingIndicator() {
+  const indicator = document.getElementById('loadingIndicator');
+  if (indicator) {
+    indicator.style.display = 'none';
+  }
+}
+
+function hideLoadingIndicators() {
+  const indicators = document.querySelectorAll('.loading');
+  indicators.forEach(el => {
+    el.style.display = 'none';
+  });
+}
+
+/**
+ * 開発モード判定
+ */
+function isDevelopmentMode() {
+  return window.location.hostname === 'localhost' || 
+         window.location.search.includes('dev=true');
+}
+
+/**
+ * デモデータ読み込み（開発時用）
+ */
+function loadDemoData() {
+  console.log('デモデータを読み込み中...');
+  
+  const demoData = {
+    metrics: {
+      totalRevenue: 15750000,
+      monthlyRevenue: 3250000,
+      totalProfit: 4725000,
+      profitMargin: 30.0,
+      customerCount: 1580,
+      newCustomers: 125,
+      growthRate: 12.5,
+      monthlyGrowth: 8.3
+    },
+    charts: {
+      // チャートデータ
+    },
+    alerts: []
+  };
+  
+  onDataLoadSuccess(demoData);
+}
+
+// DOM読み込み完了時に初期化
+document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+// 時刻表示の定期更新
+setInterval(updateCurrentTime, 1000);
+
+console.log('GM001 経営ダッシュボード スクリプト読み込み完了');
+</script>
