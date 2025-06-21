@@ -1,0 +1,455 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2025-06-16T00:00:00.000Z",
+  "description": "GAS Management Dashboard - マッピングテンプレート定義",
+  
+  "categories": [
+    {
+      "id": "sales",
+      "name": "売上・営業",
+      "description": "売上データ、営業成績、顧客情報を含む一般的な営業データ",
+      "icon": "trending_up",
+      "color": "#4caf50"
+    },
+    {
+      "id": "financial",
+      "name": "財務・会計",
+      "description": "売上、費用、利益を含む詳細な財務データ",
+      "icon": "account_balance",
+      "color": "#2196f3"
+    },
+    {
+      "id": "inventory",
+      "name": "在庫管理",
+      "description": "商品在庫、数量、評価を含む在庫管理データ",
+      "icon": "inventory",
+      "color": "#ff9800"
+    },
+    {
+      "id": "hr",
+      "name": "人事・労務",
+      "description": "従業員データ、勤怠、評価を含む人事データ",
+      "icon": "people",
+      "color": "#9c27b0"
+    },
+    {
+      "id": "marketing",
+      "name": "マーケティング",
+      "description": "キャンペーン、リード、コンバージョンを含むマーケティングデータ",
+      "icon": "campaign",
+      "color": "#e91e63"
+    },
+    {
+      "id": "operations",
+      "name": "運営・業務",
+      "description": "日常業務、プロジェクト、タスクを含む運営データ",
+      "icon": "settings",
+      "color": "#607d8b"
+    }
+  ],
+  
+  "fieldTypes": [
+    {
+      "id": "date",
+      "name": "日付・時間",
+      "description": "日付、時間、期間の情報",
+      "icon": "date_range",
+      "validationRules": {
+        "formats": ["YYYY-MM-DD", "YYYY年MM月DD日", "MM/DD/YYYY"],
+        "required": false
+      }
+    },
+    {
+      "id": "currency",
+      "name": "金額・通貨",
+      "description": "売上、費用、利益などの金額情報",
+      "icon": "attach_money",
+      "validationRules": {
+        "allowNegative": true,
+        "decimalPlaces": 2,
+        "currencies": ["JPY", "USD", "EUR"]
+      }
+    },
+    {
+      "id": "number",
+      "name": "数値・数量",
+      "description": "数量、評価、カウントなどの数値情報",
+      "icon": "functions",
+      "validationRules": {
+        "allowNegative": false,
+        "decimalPlaces": 0,
+        "min": 0
+      }
+    },
+    {
+      "id": "text",
+      "name": "テキスト・分類",
+      "description": "商品名、顧客名、カテゴリなどのテキスト情報",
+      "icon": "text_fields",
+      "validationRules": {
+        "maxLength": 255,
+        "trimWhitespace": true
+      }
+    },
+    {
+      "id": "boolean",
+      "name": "真偽値・フラグ",
+      "description": "はい/いいえ、有効/無効などのフラグ情報",
+      "icon": "toggle_on",
+      "validationRules": {
+        "trueValues": ["はい", "YES", "1", "TRUE", "有効"],
+        "falseValues": ["いいえ", "NO", "0", "FALSE", "無効"]
+      }
+    }
+  ],
+  
+  "defaultTemplates": [
+    {
+      "id": "basic-sales",
+      "name": "基本売上データ",
+      "description": "最も一般的な売上データのマッピングテンプレート",
+      "category": "sales",
+      "difficulty": "beginner",
+      "usageCount": 0,
+      "rating": 4.8,
+      "isDefault": true,
+      "fields": {
+        "date": {
+          "name": "日付",
+          "type": "date",
+          "required": true,
+          "keywords": ["日付", "date", "年月日", "時間", "time", "datetime"],
+          "description": "取引や記録の日付",
+          "examples": ["2024-01-15", "2024年1月15日", "01/15/2024"]
+        },
+        "sales": {
+          "name": "売上",
+          "type": "currency",
+          "required": true,
+          "keywords": ["売上", "売り上げ", "sales", "revenue", "収入"],
+          "description": "売上金額",
+          "examples": ["¥100,000", "100000", "1000.50"]
+        },
+        "product": {
+          "name": "商品",
+          "type": "text",
+          "required": false,
+          "keywords": ["商品", "product", "製品", "item", "商品名"],
+          "description": "販売商品名",
+          "examples": ["商品A", "Product X", "サービス1"]
+        },
+        "customer": {
+          "name": "顧客",
+          "type": "text",
+          "required": false,
+          "keywords": ["顧客", "customer", "客", "client", "会社"],
+          "description": "顧客名または会社名",
+          "examples": ["田中商事", "ABC Company", "顧客001"]
+        }
+      },
+      "sampleData": [
+        ["2024-01-01", "100000", "商品A", "田中商事"],
+        ["2024-01-02", "150000", "商品B", "鈴木工業"],
+        ["2024-01-03", "80000", "商品A", "佐藤商店"]
+      ]
+    },
+    
+    {
+      "id": "detailed-financial",
+      "name": "詳細財務データ",
+      "description": "売上、コスト、利益を含む詳細な財務分析用テンプレート",
+      "category": "financial",
+      "difficulty": "intermediate",
+      "usageCount": 0,
+      "rating": 4.6,
+      "isDefault": true,
+      "fields": {
+        "date": {
+          "name": "日付",
+          "type": "date",
+          "required": true,
+          "keywords": ["日付", "date", "年月日"],
+          "description": "取引日付",
+          "examples": ["2024-01-15"]
+        },
+        "sales": {
+          "name": "売上",
+          "type": "currency",
+          "required": true,
+          "keywords": ["売上", "revenue", "収入"],
+          "description": "売上金額",
+          "examples": ["200000"]
+        },
+        "cost": {
+          "name": "コスト",
+          "type": "currency",
+          "required": false,
+          "keywords": ["費用", "cost", "支出", "コスト", "原価"],
+          "description": "費用・コスト",
+          "examples": ["120000"]
+        },
+        "profit": {
+          "name": "利益",
+          "type": "currency",
+          "required": false,
+          "keywords": ["利益", "profit", "儲け", "純利益"],
+          "description": "利益金額",
+          "examples": ["80000"]
+        },
+        "product": {
+          "name": "商品",
+          "type": "text",
+          "required": false,
+          "keywords": ["商品", "product", "製品"],
+          "description": "商品名",
+          "examples": ["商品A"]
+        },
+        "category": {
+          "name": "カテゴリ",
+          "type": "text",
+          "required": false,
+          "keywords": ["カテゴリ", "category", "分類", "部門"],
+          "description": "商品カテゴリ",
+          "examples": ["電子機器", "食品", "サービス"]
+        }
+      },
+      "sampleData": [
+        ["2024-01-01", "200000", "120000", "80000", "商品A", "電子機器"],
+        ["2024-01-02", "300000", "180000", "120000", "商品B", "食品"],
+        ["2024-01-03", "150000", "90000", "60000", "サービス1", "サービス"]
+      ]
+    },
+    
+    {
+      "id": "inventory-basic",
+      "name": "基本在庫管理",
+      "description": "商品在庫と数量管理用テンプレート",
+      "category": "inventory",
+      "difficulty": "beginner",
+      "usageCount": 0,
+      "rating": 4.5,
+      "isDefault": true,
+      "fields": {
+        "product": {
+          "name": "商品",
+          "type": "text",
+          "required": true,
+          "keywords": ["商品", "product", "品目", "アイテム", "商品名"],
+          "description": "商品名または品目名",
+          "examples": ["商品A", "部品B", "材料C"]
+        },
+        "quantity": {
+          "name": "数量",
+          "type": "number",
+          "required": true,
+          "keywords": ["数量", "quantity", "在庫", "個数", "count"],
+          "description": "在庫数量",
+          "examples": ["100", "50", "25"]
+        },
+        "category": {
+          "name": "カテゴリ",
+          "type": "text",
+          "required": false,
+          "keywords": ["カテゴリ", "category", "分類", "種別"],
+          "description": "商品カテゴリ",
+          "examples": ["電子部品", "工具", "消耗品"]
+        },
+        "rating": {
+          "name": "評価",
+          "type": "number",
+          "required": false,
+          "keywords": ["評価", "rating", "点数", "score", "ランク"],
+          "description": "商品評価（1-5点）",
+          "examples": ["4", "5", "3"]
+        }
+      },
+      "sampleData": [
+        ["商品A", "100", "電子部品", "4"],
+        ["部品B", "50", "工具", "5"],
+        ["材料C", "25", "消耗品", "3"]
+      ]
+    },
+    
+    {
+      "id": "hr-employee",
+      "name": "従業員データ",
+      "description": "従業員情報と勤怠管理用テンプレート",
+      "category": "hr",
+      "difficulty": "intermediate",
+      "usageCount": 0,
+      "rating": 4.3,
+      "isDefault": true,
+      "fields": {
+        "employee": {
+          "name": "従業員",
+          "type": "text",
+          "required": true,
+          "keywords": ["従業員", "employee", "社員", "名前", "氏名"],
+          "description": "従業員名",
+          "examples": ["田中太郎", "鈴木花子"]
+        },
+        "department": {
+          "name": "部署",
+          "type": "text",
+          "required": false,
+          "keywords": ["部署", "department", "部門", "課"],
+          "description": "所属部署",
+          "examples": ["営業部", "開発部", "総務部"]
+        },
+        "attendance": {
+          "name": "出勤日数",
+          "type": "number",
+          "required": false,
+          "keywords": ["出勤", "attendance", "勤務日数", "日数"],
+          "description": "月間出勤日数",
+          "examples": ["22", "20", "24"]
+        },
+        "performance": {
+          "name": "評価",
+          "type": "number",
+          "required": false,
+          "keywords": ["評価", "performance", "成績", "査定"],
+          "description": "パフォーマンス評価",
+          "examples": ["4", "5", "3"]
+        }
+      },
+      "sampleData": [
+        ["田中太郎", "営業部", "22", "4"],
+        ["鈴木花子", "開発部", "21", "5"],
+        ["佐藤次郎", "総務部", "23", "3"]
+      ]
+    },
+    
+    {
+      "id": "marketing-campaign",
+      "name": "マーケティングキャンペーン",
+      "description": "マーケティング活動とキャンペーン成果分析用テンプレート",
+      "category": "marketing",
+      "difficulty": "advanced",
+      "usageCount": 0,
+      "rating": 4.4,
+      "isDefault": true,
+      "fields": {
+        "campaign": {
+          "name": "キャンペーン",
+          "type": "text",
+          "required": true,
+          "keywords": ["キャンペーン", "campaign", "企画", "プロモーション"],
+          "description": "キャンペーン名",
+          "examples": ["春の大セール", "新商品プロモ"]
+        },
+        "leads": {
+          "name": "リード数",
+          "type": "number",
+          "required": false,
+          "keywords": ["リード", "leads", "見込み客", "問い合わせ"],
+          "description": "獲得リード数",
+          "examples": ["100", "250", "150"]
+        },
+        "conversions": {
+          "name": "コンバージョン",
+          "type": "number",
+          "required": false,
+          "keywords": ["コンバージョン", "conversions", "成約", "契約"],
+          "description": "コンバージョン数",
+          "examples": ["10", "25", "15"]
+        },
+        "cost": {
+          "name": "広告費",
+          "type": "currency",
+          "required": false,
+          "keywords": ["広告費", "cost", "費用", "予算"],
+          "description": "広告費用",
+          "examples": ["50000", "100000", "75000"]
+        }
+      },
+      "sampleData": [
+        ["春の大セール", "100", "10", "50000"],
+        ["新商品プロモ", "250", "25", "100000"],
+        ["年末キャンペーン", "150", "15", "75000"]
+      ]
+    },
+    
+    {
+      "id": "operations-project",
+      "name": "プロジェクト管理",
+      "description": "プロジェクトタスクと進捗管理用テンプレート",
+      "category": "operations",
+      "difficulty": "intermediate",
+      "usageCount": 0,
+      "rating": 4.2,
+      "isDefault": true,
+      "fields": {
+        "project": {
+          "name": "プロジェクト",
+          "type": "text",
+          "required": true,
+          "keywords": ["プロジェクト", "project", "案件", "業務"],
+          "description": "プロジェクト名",
+          "examples": ["Webサイト制作", "システム開発"]
+        },
+        "task": {
+          "name": "タスク",
+          "type": "text",
+          "required": false,
+          "keywords": ["タスク", "task", "作業", "業務"],
+          "description": "タスク名",
+          "examples": ["設計", "開発", "テスト"]
+        },
+        "progress": {
+          "name": "進捗率",
+          "type": "number",
+          "required": false,
+          "keywords": ["進捗", "progress", "完了率", "%"],
+          "description": "進捗率（%）",
+          "examples": ["80", "50", "100"]
+        },
+        "deadline": {
+          "name": "期限",
+          "type": "date",
+          "required": false,
+          "keywords": ["期限", "deadline", "完了予定", "納期"],
+          "description": "完了期限",
+          "examples": ["2024-03-31", "2024年3月31日"]
+        }
+      },
+      "sampleData": [
+        ["Webサイト制作", "設計", "80", "2024-03-31"],
+        ["システム開発", "開発", "50", "2024-04-30"],
+        ["テストプロジェクト", "テスト", "100", "2024-02-28"]
+      ]
+    }
+  ],
+  
+  "mappingRules": {
+    "confidence": {
+      "high": 0.8,
+      "medium": 0.6,
+      "low": 0.4
+    },
+    "autoMapping": {
+      "enabled": true,
+      "threshold": 0.7,
+      "maxSuggestions": 5
+    },
+    "validation": {
+      "required": true,
+      "strictMode": false,
+      "allowPartialMapping": true
+    }
+  },
+  
+  "customizations": {
+    "allowCustomFields": true,
+    "maxCustomFields": 10,
+    "fieldNameMaxLength": 50,
+    "requireFieldDescription": false
+  },
+  
+  "ui": {
+    "showAdvancedOptions": false,
+    "enablePreview": true,
+    "autoSave": true,
+    "confirmBeforeApply": true
+  }
+}
